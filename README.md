@@ -1,282 +1,39 @@
-# SingulCode
+# Rewriting Project Claw Code
 
-> Harness de agentes de IA de alto desempenho — construído do zero em Python e Rust.
+<p align="center">
+  <strong>⭐ The fastest repo in history to surpass 50K stars, reaching the milestone in just 2 hours after publication ⭐</strong>
+</p>
 
-SingulCode é um runtime modular para orquestração de agentes inteligentes, execução de ferramentas e gerenciamento de contexto conversacional. Projetado para fluxos de trabalho de código automatizados via IA, com suporte a múltiplos provedores de LLM.
+<p align="center">
+  <a href="https://star-history.com/#instructkr/claw-code&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date" width="600" />
+    </picture>
+  </a>
+</p>
 
----
+<p align="center">
+  <img src="assets/clawd-hero.jpeg" alt="Claw" width="300" />
+</p>
 
-## Instalação
+<p align="center">
+  <strong>Better Harness Tools, not merely storing the archive of leaked Claude Code</strong>
+</p>
 
-### Linux / macOS
+<p align="center">
+  <a href="https://github.com/sponsors/instructkr"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github&style=for-the-badge" alt="Sponsor on GitHub" /></a>
+</p>
 
-```bash
-# Clonar o repositório
-git clone https://github.com/seu-usuario/singul-code.git
-cd singul-code
+> [!IMPORTANT]
+> **Rust port is now in progress** on the [`dev/rust`](https://github.com/instructkr/claw-code/tree/dev/rust) branch and is expected to be merged into main today. The Rust implementation aims to deliver a faster, memory-safe harness runtime. Stay tuned — this will be the definitive version of the project.
 
-# Instalar (compila e adiciona singulcode ao PATH)
-./install.sh
-```
-
-Com diretório customizado:
-
-```bash
-./install.sh --prefix /usr/local
-```
-
-Adicione ao seu shell profile se o instalador avisar sobre PATH:
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### Windows
-
-```powershell
-# No PowerShell (a partir da raiz do repositório)
-.\install.ps1
-```
-
-Com diretório customizado:
-
-```powershell
-.\install.ps1 -Prefix "C:\Tools"
-```
-
-> O instalador adiciona o `singulcode` ao PATH do usuário automaticamente. Reinicie o terminal após a instalação.
-
-### Cargo (manual)
-
-```bash
-cd rust/
-cargo build --release --bin singulcode
-# Copiar para o PATH manualmente
-cp target/release/singulcode /usr/local/bin/
-```
-
-### Verificar instalação
-
-```bash
-singulcode --version
-```
+> If you find this work useful, consider [sponsoring @instructkr on GitHub](https://github.com/sponsors/instructkr) to support continued open-source harness engineering research.
 
 ---
 
-## Configuração inicial
-
-```bash
-# Anthropic (Claude)
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# OpenRouter — acesso a 200+ modelos (Llama, DeepSeek, Gemini, Mistral...)
-export OPENROUTER_API_KEY="sk-or-v1-..."
-
-# xAI (Grok)
-export XAI_API_KEY="..."
-```
-
-Ou autentique via OAuth:
-
-```bash
-singulcode login
-```
-
----
-
-## Funcionalidades
-
-### Provedores de LLM
-
-| Provedor | Status | Env Var |
-|----------|--------|---------|
-| Anthropic (Claude) | ✅ Nativo | `ANTHROPIC_API_KEY` |
-| xAI (Grok) | ✅ Suportado | `XAI_API_KEY` |
-| OpenAI | ✅ Suportado | `OPENAI_API_KEY` |
-| OpenRouter | ✅ Suportado | `OPENROUTER_API_KEY` |
-
-### Aliases de modelos
-
-| Alias | Modelo |
-|-------|--------|
-| `opus` | `claude-opus-4-6` |
-| `sonnet` | `claude-sonnet-4-6` |
-| `haiku` | `claude-haiku-4-5-20251213` |
-| `grok` | `grok-3` |
-| `grok-mini` | `grok-3-mini` |
-| `llama` | `meta-llama/llama-3.3-70b-instruct` |
-| `mistral` | `mistralai/mistral-large-latest` |
-| `gemini` | `google/gemini-2.5-pro` |
-| `deepseek` | `deepseek/deepseek-chat-v3` |
-
-Qualquer modelo do OpenRouter também pode ser especificado diretamente pelo nome (ex: `deepseek/deepseek-chat-v3`).
-
-### Sistema de ferramentas (40+ ferramentas)
-
-- **Arquivos:** leitura, escrita, edição, glob, grep com limites de segurança
-- **Shell:** execução de Bash com sandbox, validação e controle de permissões
-- **Web:** busca e fetch de páginas
-- **Agentes:** orquestração de sub-agentes paralelos
-- **Tarefas:** gerenciamento de to-do e rastreamento de estado
-- **Notebooks:** edição de Jupyter
-- **MCP:** ciclo de vida de servidores de contexto de modelos (stdio, WebSocket, HTTP)
-- **LSP:** integração com language servers (diagnósticos, hover, definição, referências, formatação)
-- **Plugins:** marketplace builtin/bundled/externo
-
-### Runtime e sessões
-
-- Loop agêntico com streaming de eventos
-- Persistência de sessão com retomada por ID
-- Compactação de histórico de conversas longas
-- Rastreamento de custo e uso de tokens
-- Memória de projeto via `singul.md`
-- Hierarquia de configuração (`.singul.json`: usuário > projeto > local)
-
-### Segurança e permissões
-
-- Três modos: `read-only`, `workspace-write`, `danger-full-access`
-- Validação de comandos Bash (17 verificações: destrutividade, sed, path, semântica)
-- Confinamento de workspace — prevenção de escape por symlink
-- Camada de enforcement de permissões cruzando todas as ferramentas
-
-### Interface
-
-- REPL interativo com autocompletar (rustyline)
-- 27+ slash commands com handlers reais
-- Renderização de Markdown no terminal (ANSI)
-- Exibição de diff Git integrada
-- Prompt único (non-interactive)
-
----
-
-## Início rápido
-
-### Python
-
-```bash
-# Resumo do workspace
-python3 -m src.main summary
-
-# Manifesto de módulos
-python3 -m src.main manifest
-
-# Subsistemas disponíveis
-python3 -m src.main subsystems --limit 16
-
-# Testes
-python3 -m unittest discover -s tests -v
-```
-
-### Rust (CLI binária `singul`)
-
-```bash
-cd rust/
-cargo build --release
-
-# REPL interativo
-./target/release/singul
-
-# Prompt único
-./target/release/singul prompt "explique este código"
-
-# Com modelo específico
-./target/release/singul --model deepseek prompt "corrija o bug em main.rs"
-```
-
----
-
-## Configuração
-
-```bash
-# Anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# OpenRouter (acesso a 200+ modelos)
-export OPENROUTER_API_KEY="sk-or-v1-..."
-export OPENROUTER_TITLE="meu-projeto"   # opcional
-
-# xAI
-export XAI_API_KEY="..."
-
-# OpenAI
-export OPENAI_API_KEY="sk-..."
-```
-
-Ou autentique via OAuth:
-
-```bash
-singul login
-```
-
----
-
-## Estrutura do repositório
-
-```text
-singul-code/
-├── src/                    # Implementação Python (MVP estável)
-│   ├── main.py             # Entrypoint CLI
-│   ├── commands.py         # Sistema de comandos (50+)
-│   ├── tools.py            # Definições de ferramentas (40+)
-│   ├── query_engine.py     # Roteamento semântico
-│   ├── runtime.py          # Loop de execução agêntica
-│   ├── session_store.py    # Persistência de sessões
-│   ├── permissions.py      # Modelo de permissões
-│   ├── cost_tracker.py     # Rastreamento de custo
-│   └── ...                 # 17 subsistemas no total
-├── rust/                   # Implementação Rust (migração em progresso)
-│   └── crates/
-│       ├── api/            # Cliente HTTP + streaming SSE
-│       ├── runtime/        # Loop agêntico, config, sessão, MCP
-│       ├── tools/          # Implementação das ferramentas
-│       ├── commands/       # Registro de slash commands
-│       ├── lsp/            # Cliente LSP
-│       ├── plugins/        # Sistema de plugins
-│       └── rusty-claude-cli/ # Binária principal
-├── tests/                  # Testes de verificação Python
-└── docs/                   # Documentação técnica
-```
-
----
-
-## Harness de paridade com mock
-
-O workspace inclui um serviço Anthropic-compatível determinístico para testes end-to-end:
-
-```bash
-cd rust/
-
-# Executar harness completo em ambiente limpo
-./scripts/run_mock_parity_harness.sh
-
-# Iniciar mock manualmente
-cargo run -p mock-anthropic-service -- --bind 127.0.0.1:0
-```
-
-Cenários cobertos: streaming de texto, leitura/escrita de arquivos, grep, Bash, permissões, plugins, multi-turn com ferramentas.
-
----
-
-## Status do projeto
-
-| Componente | Status |
-|-----------|--------|
-| Python — 17 subsistemas | ✅ MVP completo |
-| Rust — 9 lanes merged | ✅ 48.600+ LOC |
-| Sistema de ferramentas | ✅ 40 ferramentas |
-| Provedores LLM | ✅ Anthropic, xAI, OpenAI, OpenRouter |
-| Testes | ✅ Harness de paridade com mock |
-| LSP client | ✅ Diagnósticos, hover, definição, referências |
-| MCP client | ✅ stdio / WebSocket / HTTP |
-| Sistema de plugins | ✅ Marketplace builtin/externo |
-
----
-
-## Aviso
-
-Este repositório é uma implementação independente construída do zero. Não é afiliado, endossado ou mantido pela Anthropic ou por qualquer outro provedor de LLM mencionado.
-
+## Backstory
 
 At 4 AM on March 31, 2026, I woke up to my phone blowing up with notifications. The Claude Code source had been exposed, and the entire dev community was in a frenzy. My girlfriend in Korea was genuinely worried I might face legal action from Anthropic just for having the code on my machine — so I did what any engineer would do under pressure: I sat down, ported the core features to Python from scratch, and pushed it before the sun came up.
 

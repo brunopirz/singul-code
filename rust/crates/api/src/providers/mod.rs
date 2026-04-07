@@ -4,6 +4,7 @@ use std::pin::Pin;
 use crate::error::ApiError;
 use crate::types::{MessageRequest, MessageResponse};
 
+pub mod anthropic;
 pub mod claw_provider;
 pub mod openai_compat;
 
@@ -25,9 +26,10 @@ pub trait Provider {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderKind {
-    ClawApi,
+    Anthropic,
     Xai,
     OpenAi,
+    OpenRouter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,55 +44,28 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
     (
         "opus",
         ProviderMetadata {
-            provider: ProviderKind::ClawApi,
+            provider: ProviderKind::Anthropic,
             auth_env: "ANTHROPIC_API_KEY",
             base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
+            default_base_url: anthropic::DEFAULT_BASE_URL,
         },
     ),
     (
         "sonnet",
         ProviderMetadata {
-            provider: ProviderKind::ClawApi,
+            provider: ProviderKind::Anthropic,
             auth_env: "ANTHROPIC_API_KEY",
             base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
+            default_base_url: anthropic::DEFAULT_BASE_URL,
         },
     ),
     (
         "haiku",
         ProviderMetadata {
-            provider: ProviderKind::ClawApi,
+            provider: ProviderKind::Anthropic,
             auth_env: "ANTHROPIC_API_KEY",
             base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
-        },
-    ),
-    (
-        "claude-opus-4-6",
-        ProviderMetadata {
-            provider: ProviderKind::ClawApi,
-            auth_env: "ANTHROPIC_API_KEY",
-            base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
-        },
-    ),
-    (
-        "claude-sonnet-4-6",
-        ProviderMetadata {
-            provider: ProviderKind::ClawApi,
-            auth_env: "ANTHROPIC_API_KEY",
-            base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
-        },
-    ),
-    (
-        "claude-haiku-4-5-20251213",
-        ProviderMetadata {
-            provider: ProviderKind::ClawApi,
-            auth_env: "ANTHROPIC_API_KEY",
-            base_url_env: "ANTHROPIC_BASE_URL",
-            default_base_url: claw_provider::DEFAULT_BASE_URL,
+            default_base_url: anthropic::DEFAULT_BASE_URL,
         },
     ),
     (
@@ -138,6 +113,42 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
             default_base_url: openai_compat::DEFAULT_XAI_BASE_URL,
         },
     ),
+    (
+        "llama",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
+    (
+        "mistral",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
+    (
+        "gemini",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
+    (
+        "deepseek",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
 ];
 
 #[must_use]
@@ -148,7 +159,7 @@ pub fn resolve_model_alias(model: &str) -> String {
         .iter()
         .find_map(|(alias, metadata)| {
             (*alias == lower).then_some(match metadata.provider {
-                ProviderKind::ClawApi => match *alias {
+                ProviderKind::Anthropic => match *alias {
                     "opus" => "claude-opus-4-6",
                     "sonnet" => "claude-sonnet-4-6",
                     "haiku" => "claude-haiku-4-5-20251213",
@@ -161,6 +172,13 @@ pub fn resolve_model_alias(model: &str) -> String {
                     _ => trimmed,
                 },
                 ProviderKind::OpenAi => trimmed,
+                ProviderKind::OpenRouter => match *alias {
+                    "llama" => "meta-llama/llama-3.3-70b-instruct",
+                    "mistral" => "mistralai/mistral-large-latest",
+                    "gemini" => "google/gemini-2.5-pro",
+                    "deepseek" => "deepseek/deepseek-chat-v3",
+                    _ => trimmed,
+                },
             })
         })
         .map_or_else(|| trimmed.to_string(), ToOwned::to_owned)
@@ -169,16 +187,28 @@ pub fn resolve_model_alias(model: &str) -> String {
 #[must_use]
 pub fn metadata_for_model(model: &str) -> Option<ProviderMetadata> {
     let canonical = resolve_model_alias(model);
-    let lower = canonical.to_ascii_lowercase();
-    if let Some((_, metadata)) = MODEL_REGISTRY.iter().find(|(alias, _)| *alias == lower) {
-        return Some(*metadata);
+    if canonical.starts_with("claude") {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::Anthropic,
+            auth_env: "ANTHROPIC_API_KEY",
+            base_url_env: "ANTHROPIC_BASE_URL",
+            default_base_url: anthropic::DEFAULT_BASE_URL,
+        });
     }
-    if lower.starts_with("grok") {
+    if canonical.starts_with("grok") {
         return Some(ProviderMetadata {
             provider: ProviderKind::Xai,
             auth_env: "XAI_API_KEY",
             base_url_env: "XAI_BASE_URL",
             default_base_url: openai_compat::DEFAULT_XAI_BASE_URL,
+        });
+    }
+    if canonical.contains('/') {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
         });
     }
     None
@@ -189,16 +219,19 @@ pub fn detect_provider_kind(model: &str) -> ProviderKind {
     if let Some(metadata) = metadata_for_model(model) {
         return metadata.provider;
     }
-    if claw_provider::has_auth_from_env_or_saved().unwrap_or(false) {
-        return ProviderKind::ClawApi;
+    if anthropic::has_auth_from_env_or_saved().unwrap_or(false) {
+        return ProviderKind::Anthropic;
     }
     if openai_compat::has_api_key("OPENAI_API_KEY") {
         return ProviderKind::OpenAi;
     }
+    if openai_compat::has_api_key("OPENROUTER_API_KEY") {
+        return ProviderKind::OpenRouter;
+    }
     if openai_compat::has_api_key("XAI_API_KEY") {
         return ProviderKind::Xai;
     }
-    ProviderKind::ClawApi
+    ProviderKind::Anthropic
 }
 
 #[must_use]
@@ -223,11 +256,40 @@ mod tests {
     }
 
     #[test]
+    fn resolves_openrouter_aliases() {
+        assert_eq!(
+            resolve_model_alias("llama"),
+            "meta-llama/llama-3.3-70b-instruct"
+        );
+        assert_eq!(
+            resolve_model_alias("mistral"),
+            "mistralai/mistral-large-latest"
+        );
+        assert_eq!(resolve_model_alias("gemini"), "google/gemini-2.5-pro");
+        assert_eq!(
+            resolve_model_alias("deepseek"),
+            "deepseek/deepseek-chat-v3"
+        );
+    }
+
+    #[test]
+    fn detects_openrouter_from_slash_format() {
+        assert_eq!(
+            detect_provider_kind("meta-llama/llama-3.3-70b-instruct"),
+            ProviderKind::OpenRouter
+        );
+        assert_eq!(
+            detect_provider_kind("deepseek/deepseek-chat-v3"),
+            ProviderKind::OpenRouter
+        );
+    }
+
+    #[test]
     fn detects_provider_from_model_name_first() {
         assert_eq!(detect_provider_kind("grok"), ProviderKind::Xai);
         assert_eq!(
             detect_provider_kind("claude-sonnet-4-6"),
-            ProviderKind::ClawApi
+            ProviderKind::Anthropic
         );
     }
 

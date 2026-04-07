@@ -16,10 +16,11 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use api::{
-    resolve_startup_auth_source, AuthSource, ClawApiClient, ContentBlockDelta, InputContentBlock,
+    ContentBlockDelta, InputContentBlock,
     InputMessage, MessageRequest, MessageResponse, OutputContentBlock,
     StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
 };
+use api::providers::claw_provider::{resolve_startup_auth_source, AuthSource, ClawApiClient};
 
 use commands::{
     handle_agents_slash_command, handle_plugins_slash_command, handle_skills_slash_command,
@@ -329,10 +330,10 @@ fn join_optional_args(args: &[String]) -> Option<String> {
 fn parse_direct_slash_cli_action(rest: &[String]) -> Result<CliAction, String> {
     let raw = rest.join(" ");
     match SlashCommand::parse(&raw) {
-        Some(SlashCommand::Help) => Ok(CliAction::Help),
-        Some(SlashCommand::Agents { args }) => Ok(CliAction::Agents { args }),
-        Some(SlashCommand::Skills { args }) => Ok(CliAction::Skills { args }),
-        Some(command) => Err(format_direct_slash_command_error(
+        Ok(Some(SlashCommand::Help)) => Ok(CliAction::Help),
+        Ok(Some(SlashCommand::Agents { args })) => Ok(CliAction::Agents { args }),
+        Ok(Some(SlashCommand::Skills { args })) => Ok(CliAction::Skills { args }),
+        Ok(Some(command)) => Err(format_direct_slash_command_error(
             match &command {
                 SlashCommand::Unknown(name) => format!("/{name}"),
                 _ => rest[0].clone(),
@@ -340,7 +341,7 @@ fn parse_direct_slash_cli_action(rest: &[String]) -> Result<CliAction, String> {
             .as_str(),
             matches!(command, SlashCommand::Unknown(_)),
         )),
-        None => Err(format!("unknown subcommand: {}", rest[0])),
+        Ok(None) | Err(_) => Err(format!("unknown subcommand: {}", rest[0])),
     }
 }
 
@@ -483,7 +484,7 @@ fn dump_manifests() {
 }
 
 fn print_bootstrap_plan() {
-    for phase in runtime::BootstrapPlan::claw_default().phases() {
+    for phase in runtime::BootstrapPlan::claude_code_default().phases() {
         println!("- {phase:?}");
     }
 }
@@ -649,7 +650,7 @@ fn resume_session(session_path: &Path, commands: &[String]) {
 
     let mut session = session;
     for raw_command in commands {
-        let Some(command) = SlashCommand::parse(raw_command) else {
+        let Ok(Some(command)) = SlashCommand::parse(raw_command) else {
             eprintln!("unsupported resumed command: {raw_command}");
             std::process::exit(2);
         };
@@ -986,8 +987,6 @@ fn run_resume_command(
         }
         SlashCommand::Bughunter { .. }
         | SlashCommand::Branch { .. }
-        | SlashCommand::Worktree { .. }
-        | SlashCommand::CommitPushPr { .. }
         | SlashCommand::Commit
         | SlashCommand::Pr { .. }
         | SlashCommand::Issue { .. }
@@ -1000,6 +999,7 @@ fn run_resume_command(
         | SlashCommand::Session { .. }
         | SlashCommand::Plugins { .. }
         | SlashCommand::Unknown(_) => Err("unsupported resumed slash command".into()),
+        _ => Err("unsupported resumed slash command".into()),
     }
 }
 
@@ -1023,7 +1023,7 @@ fn run_repl(
                     cli.persist_session()?;
                     break;
                 }
-                if let Some(command) = SlashCommand::parse(trimmed) {
+                if let Ok(Some(command)) = SlashCommand::parse(trimmed) {
                     if cli.handle_repl_command(command)? {
                         cli.persist_session()?;
                     }
@@ -1335,22 +1335,12 @@ impl LiveCli {
                 );
                 false
             }
-            SlashCommand::Worktree { .. } => {
-                eprintln!(
-                    "{}",
-                    render_mode_unavailable("worktree", "git worktree commands")
-                );
-                false
-            }
-            SlashCommand::CommitPushPr { .. } => {
-                eprintln!(
-                    "{}",
-                    render_mode_unavailable("commit-push-pr", "commit + push + PR automation")
-                );
-                false
-            }
             SlashCommand::Unknown(name) => {
                 eprintln!("{}", render_unknown_repl_command(&name));
+                false
+            }
+            _ => {
+                eprintln!("command not yet supported in REPL mode");
                 false
             }
         })
@@ -2988,7 +2978,7 @@ fn build_runtime(
         CliToolExecutor::new(allowed_tools.clone(), emit_output, tool_registry.clone()),
         permission_policy(permission_mode, &tool_registry),
         system_prompt,
-        feature_config,
+        &feature_config,
     ))
 }
 
@@ -3907,7 +3897,8 @@ impl ToolExecutor for CliToolExecutor {
 }
 
 fn permission_policy(mode: PermissionMode, tool_registry: &GlobalToolRegistry) -> PermissionPolicy {
-    tool_registry.permission_specs(None).into_iter().fold(
+    let specs = tool_registry.permission_specs(None).unwrap_or_default();
+    specs.into_iter().fold(
         PermissionPolicy::new(mode),
         |policy, (name, required_permission)| {
             policy.with_tool_requirement(name, required_permission)
@@ -4691,11 +4682,11 @@ mod tests {
     fn clear_command_requires_explicit_confirmation_flag() {
         assert_eq!(
             SlashCommand::parse("/clear"),
-            Some(SlashCommand::Clear { confirm: false })
+            Ok(Some(SlashCommand::Clear { confirm: false }))
         );
         assert_eq!(
             SlashCommand::parse("/clear --confirm"),
-            Some(SlashCommand::Clear { confirm: true })
+            Ok(Some(SlashCommand::Clear { confirm: true }))
         );
     }
 
@@ -4703,26 +4694,26 @@ mod tests {
     fn parses_resume_and_config_slash_commands() {
         assert_eq!(
             SlashCommand::parse("/resume saved-session.json"),
-            Some(SlashCommand::Resume {
+            Ok(Some(SlashCommand::Resume {
                 session_path: Some("saved-session.json".to_string())
-            })
+            }))
         );
         assert_eq!(
             SlashCommand::parse("/clear --confirm"),
-            Some(SlashCommand::Clear { confirm: true })
+            Ok(Some(SlashCommand::Clear { confirm: true }))
         );
         assert_eq!(
             SlashCommand::parse("/config"),
-            Some(SlashCommand::Config { section: None })
+            Ok(Some(SlashCommand::Config { section: None }))
         );
         assert_eq!(
             SlashCommand::parse("/config env"),
-            Some(SlashCommand::Config {
+            Ok(Some(SlashCommand::Config {
                 section: Some("env".to_string())
-            })
+            }))
         );
-        assert_eq!(SlashCommand::parse("/memory"), Some(SlashCommand::Memory));
-        assert_eq!(SlashCommand::parse("/init"), Some(SlashCommand::Init));
+        assert_eq!(SlashCommand::parse("/memory"), Ok(Some(SlashCommand::Memory)));
+        assert_eq!(SlashCommand::parse("/init"), Ok(Some(SlashCommand::Init)));
     }
 
     #[test]
