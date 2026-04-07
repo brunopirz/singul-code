@@ -153,7 +153,8 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
 
 #[must_use]
 pub fn resolve_model_alias(model: &str) -> String {
-    let trimmed = model.trim();
+    // Strip explicit provider prefix e.g. "openrouter/qwen/..." → "qwen/..."
+    let trimmed = model.trim().strip_prefix("openrouter/").unwrap_or(model.trim());
     let lower = trimmed.to_ascii_lowercase();
     MODEL_REGISTRY
         .iter()
@@ -269,6 +270,15 @@ mod tests {
         assert_eq!(
             resolve_model_alias("deepseek"),
             "deepseek/deepseek-chat-v3"
+        );
+        // Strip explicit openrouter/ prefix
+        assert_eq!(
+            resolve_model_alias("openrouter/qwen/qwen3.6-plus:free"),
+            "qwen/qwen3.6-plus:free"
+        );
+        assert_eq!(
+            resolve_model_alias("openrouter/google/gemini-2.5-pro"),
+            "google/gemini-2.5-pro"
         );
     }
 
