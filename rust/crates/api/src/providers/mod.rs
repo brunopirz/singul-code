@@ -149,6 +149,24 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
             default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
         },
     ),
+    (
+        "qwen",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
+    (
+        "qwen3",
+        ProviderMetadata {
+            provider: ProviderKind::OpenRouter,
+            auth_env: "OPENROUTER_API_KEY",
+            base_url_env: "OPENROUTER_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENROUTER_BASE_URL,
+        },
+    ),
 ];
 
 #[must_use]
@@ -178,6 +196,7 @@ pub fn resolve_model_alias(model: &str) -> String {
                     "mistral" => "mistralai/mistral-large-latest",
                     "gemini" => "google/gemini-2.5-pro",
                     "deepseek" => "deepseek/deepseek-chat-v3",
+                    "qwen" | "qwen3" => "qwen/qwen3.6-plus:free",
                     _ => trimmed,
                 },
             })

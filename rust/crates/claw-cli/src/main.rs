@@ -57,7 +57,7 @@ fn default_model_for_env() -> String {
         .map(|v| !v.is_empty())
         .unwrap_or(false);
     if has_openrouter {
-        return "deepseek/deepseek-chat-v3".to_string();
+        return "qwen/qwen3.6-plus:free".to_string();
     }
     let has_openai = std::env::var("OPENAI_API_KEY")
         .map(|v| !v.is_empty())
