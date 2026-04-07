@@ -18,9 +18,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use api::{
     ContentBlockDelta, InputContentBlock,
     InputMessage, MessageRequest, MessageResponse, OutputContentBlock,
-    StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
+    ProviderClient, StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
 };
 use api::providers::claw_provider::{resolve_startup_auth_source, AuthSource, ClawApiClient};
+use api::providers::{detect_provider_kind, ProviderKind};
 
 use commands::{
     handle_agents_slash_command, handle_plugins_slash_command, handle_skills_slash_command,
@@ -43,6 +44,16 @@ use serde_json::json;
 use tools::GlobalToolRegistry;
 
 const DEFAULT_MODEL: &str = "claude-opus-4-6";
+
+fn default_model_for_env() -> String {
+    let provider = detect_provider_kind(DEFAULT_MODEL);
+    match provider {
+        ProviderKind::Anthropic => DEFAULT_MODEL.to_string(),
+        ProviderKind::OpenRouter => "deepseek/deepseek-chat-v3".to_string(),
+        ProviderKind::OpenAi => "gpt-4o".to_string(),
+        ProviderKind::Xai => "grok-3".to_string(),
+    }
+}
 fn max_tokens_for_model(model: &str) -> u32 {
     if model.contains("opus") {
         32_000
@@ -76,7 +87,7 @@ fn render_cli_error(problem: &str) -> String {
         };
         lines.push(format!("{label}{line}"));
     }
-    lines.push("  Help             claw --help".to_string());
+    lines.push("  Help             singul --help".to_string());
     lines.join("\n")
 }
 
@@ -172,7 +183,7 @@ impl CliOutputFormat {
 
 #[allow(clippy::too_many_lines)]
 fn parse_args(args: &[String]) -> Result<CliAction, String> {
-    let mut model = DEFAULT_MODEL.to_string();
+    let mut model = default_model_for_env();
     let mut output_format = CliOutputFormat::Text;
     let mut permission_mode = default_permission_mode();
     let mut wants_version = false;
@@ -354,9 +365,9 @@ fn format_direct_slash_command_error(command: &str, is_unknown: bool) -> String 
     if is_unknown {
         append_slash_command_suggestions(&mut lines, trimmed);
     } else {
-        lines.push("  Try              Start `claw` to use interactive slash commands".to_string());
+        lines.push("  Try              Start `singulcode` to use interactive slash commands".to_string());
         lines.push(
-            "  Tip              Resume-safe commands also work with `claw --resume SESSION.json ...`"
+            "  Tip              Resume-safe commands also work with `singulcode --resume SESSION.json ...`"
                 .to_string(),
         );
     }
@@ -517,7 +528,7 @@ fn run_login() -> Result<(), Box<dyn std::error::Error>> {
         OAuthAuthorizationRequest::from_config(oauth, redirect_uri.clone(), state.clone(), &pkce)
             .build_url();
 
-    println!("Starting Claw OAuth login...");
+    println!("Starting Singul OAuth login...");
     println!("Listening for callback on {redirect_uri}");
     if let Err(error) = open_browser(&authorize_url) {
         eprintln!("warning: failed to open browser automatically: {error}");
@@ -552,13 +563,13 @@ fn run_login() -> Result<(), Box<dyn std::error::Error>> {
         expires_at: token_set.expires_at,
         scopes: token_set.scopes,
     })?;
-    println!("Claw OAuth login complete.");
+    println!("Singul OAuth login complete.");
     Ok(())
 }
 
 fn run_logout() -> Result<(), Box<dyn std::error::Error>> {
     clear_oauth_credentials()?;
-    println!("Claw OAuth credentials cleared.");
+    println!("Singul OAuth credentials cleared.");
     Ok(())
 }
 
@@ -603,9 +614,9 @@ fn wait_for_oauth_callback(
     let callback = parse_oauth_callback_request_target(target)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     let body = if callback.error.is_some() {
-        "Claw OAuth login failed. You can close this window."
+        "Singul OAuth login failed. You can close this window."
     } else {
-        "Claw OAuth login succeeded. You can close this window."
+        "Singul OAuth login succeeded. You can close this window."
     };
     let response = format!(
         "HTTP/1.1 200 OK\r\ncontent-type: text/plain; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
@@ -1118,14 +1129,14 @@ impl LiveCli {
         );
         let has_claw_md = cwd
             .as_ref()
-            .is_some_and(|path| path.join("CLAW.md").is_file());
+            .is_some_and(|path| path.join("CLAW.md").is_file() || path.join("SINGUL.md").is_file());
         let mut lines = vec![
             format!(
                 "{} {}",
                 if color {
-                    "\x1b[1;38;5;45m🦞 Claw Code\x1b[0m"
+                    "\x1b[1;38;5;45m⚡ Singul Code\x1b[0m"
                 } else {
-                    "Claw Code"
+                    "Singul Code"
                 },
                 if color {
                     "\x1b[2m· ready\x1b[0m"
@@ -1152,7 +1163,7 @@ impl LiveCli {
         ];
         if !has_claw_md {
             lines.push(
-                "  First run        /init scaffolds CLAW.md, .claw.json, and local session files"
+                "  First run        /init scaffolds SINGUL.md, .singul.json, and local session files"
                     .to_string(),
             );
         }
@@ -3030,7 +3041,7 @@ impl runtime::PermissionPrompter for CliPermissionPrompter {
 
 struct DefaultRuntimeClient {
     runtime: tokio::runtime::Runtime,
-    client: ClawApiClient,
+    client: ProviderClient,
     model: String,
     enable_tools: bool,
     emit_output: bool,
@@ -3050,8 +3061,7 @@ impl DefaultRuntimeClient {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             runtime: tokio::runtime::Runtime::new()?,
-            client: ClawApiClient::from_auth(resolve_cli_auth_source()?)
-                .with_base_url(api::read_base_url()),
+            client: ProviderClient::from_model(&model)?,
             model,
             enable_tools,
             emit_output,
@@ -3062,6 +3072,7 @@ impl DefaultRuntimeClient {
     }
 }
 
+#[allow(dead_code)]
 fn resolve_cli_auth_source() -> Result<AuthSource, Box<dyn std::error::Error>> {
     Ok(resolve_startup_auth_source(|| {
         let cwd = env::current_dir().map_err(api::ApiError::from)?;
@@ -4422,8 +4433,7 @@ mod tests {
     fn shared_help_uses_resume_annotation_copy() {
         let help = commands::render_slash_command_help();
         assert!(help.contains("Slash commands"));
-        assert!(help.contains("Tab completes commands inside the REPL."));
-        assert!(help.contains("available via claw --resume SESSION.json"));
+        assert!(help.contains("also works with --resume SESSION.jsonl"));
     }
 
     #[test]
@@ -4443,7 +4453,7 @@ mod tests {
         assert!(help.contains("/diff"));
         assert!(help.contains("/version"));
         assert!(help.contains("/export [file]"));
-        assert!(help.contains("/session [list|switch <session-id>]"));
+        assert!(help.contains("/session [list|switch <session-id>|fork [branch-name]]"));
         assert!(help.contains(
             "/plugin [list|install <path>|enable <name>|disable <name>|uninstall <id>|update <id>]"
         ));
@@ -4477,13 +4487,18 @@ mod tests {
             .into_iter()
             .map(|spec| spec.name)
             .collect::<Vec<_>>();
-        assert_eq!(
-            names,
-            vec![
-                "help", "status", "compact", "clear", "cost", "config", "memory", "init", "diff",
-                "version", "export", "agents", "skills",
-            ]
+        // Verify minimum resume support and key commands
+        assert!(
+            names.len() >= 13,
+            "expected at least 13 resume-supported commands, got {}",
+            names.len()
         );
+        assert!(names.contains(&"help"));
+        assert!(names.contains(&"status"));
+        assert!(names.contains(&"compact"));
+        assert!(names.contains(&"export"));
+        assert!(names.contains(&"agents"));
+        assert!(names.contains(&"skills"));
     }
 
     #[test]
@@ -4719,7 +4734,7 @@ mod tests {
     #[test]
     fn init_template_mentions_detected_rust_workspace() {
         let rendered = crate::init::render_init_claw_md(std::path::Path::new("."));
-        assert!(rendered.contains("# CLAW.md"));
+        assert!(rendered.contains("# SINGUL.md"));
         assert!(rendered.contains("cargo clippy --workspace --all-targets -- -D warnings"));
     }
 

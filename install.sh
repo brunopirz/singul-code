@@ -75,9 +75,10 @@ if [[ ! -d "$RUST_DIR" ]]; then
 fi
 
 cd "$RUST_DIR"
-cargo build --release --bin "${BINARY_NAME}" 2>&1 | grep -v "^$" || error "Falha na compilação."
+cargo build --release --bin singulcode --bin singul 2>&1 | grep -v "^$" || error "Falha na compilação."
 
-BUILT_BINARY="${RUST_DIR}/target/release/${BINARY_NAME}"
+BUILT_BINARY="${RUST_DIR}/target/release/singulcode"
+BUILT_ALIAS="${RUST_DIR}/target/release/singul"
 if [[ ! -f "$BUILT_BINARY" ]]; then
     error "Binário não encontrado em ${BUILT_BINARY} após compilação."
 fi
@@ -86,8 +87,9 @@ success "Build concluído: ${BUILT_BINARY}"
 
 # ── Instalar ──────────────────────────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR"
-install -m 755 "$BUILT_BINARY" "${INSTALL_DIR}/${BINARY_NAME}"
-success "Instalado em ${INSTALL_DIR}/${BINARY_NAME}"
+install -m 755 "$BUILT_BINARY" "${INSTALL_DIR}/singulcode"
+install -m 755 "$BUILT_ALIAS" "${INSTALL_DIR}/singul"
+success "Instalado em ${INSTALL_DIR}/singulcode e ${INSTALL_DIR}/singul"
 
 # ── Verificar PATH ────────────────────────────────────────────────────────────
 if [[ ":${PATH}:" != *":${INSTALL_DIR}:"* ]]; then
@@ -101,9 +103,9 @@ if [[ ":${PATH}:" != *":${INSTALL_DIR}:"* ]]; then
 fi
 
 # ── Verificar instalação ──────────────────────────────────────────────────────
-if command -v "${BINARY_NAME}" &>/dev/null; then
+if command -v "singul" &>/dev/null; then
     echo ""
-    success "${BINARY_NAME} instalado com sucesso!"
+    success "singul instalado com sucesso!"
     echo ""
     echo -e "  ${BOLD}Próximos passos:${NC}"
     echo ""
@@ -113,17 +115,17 @@ if command -v "${BINARY_NAME}" &>/dev/null; then
     echo -e "     ${CYAN}export OPENROUTER_API_KEY=\"sk-or-v1-...\"${NC}"
     echo ""
     echo "  2. Inicie o REPL interativo:"
-    echo -e "     ${BOLD}${BINARY_NAME}${NC}"
+    echo -e "     ${BOLD}singul${NC}"
     echo ""
     echo "  3. Ou use em modo não-interativo:"
-    echo -e "     ${BOLD}${BINARY_NAME} prompt \"explique este código\"${NC}"
+    echo -e "     ${BOLD}singul prompt \"explique este código\"${NC}"
     echo ""
     echo "  4. Com modelo específico:"
-    echo -e "     ${BOLD}${BINARY_NAME} --model deepseek prompt \"corrija o bug\"${NC}"
+    echo -e "     ${BOLD}singul --model deepseek prompt \"corrija o bug\"${NC}"
     echo ""
 else
     echo ""
-    warn "Instalação concluída, mas ${BINARY_NAME} não está no PATH atual."
+    warn "Instalação concluída, mas singul não está no PATH atual."
     echo "  Execute: export PATH=\"\$PATH:${INSTALL_DIR}\""
-    echo "  Depois:  ${BINARY_NAME}"
+    echo "  Depois:  singul"
 fi

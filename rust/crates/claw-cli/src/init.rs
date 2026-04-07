@@ -8,7 +8,7 @@ const STARTER_CLAW_JSON: &str = concat!(
     "  }\n",
     "}\n",
 );
-const GITIGNORE_COMMENT: &str = "# Claw Code local artifacts";
+const GITIGNORE_COMMENT: &str = "# Singul Code local artifacts";
 const GITIGNORE_ENTRIES: [&str; 2] = [".claw/settings.local.json", ".claw/sessions/"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,10 +98,10 @@ pub(crate) fn initialize_repo(cwd: &Path) -> Result<InitReport, Box<dyn std::err
         status: ensure_gitignore_entries(&gitignore)?,
     });
 
-    let claw_md = cwd.join("CLAW.md");
+    let claw_md = cwd.join("SINGUL.md");
     let content = render_init_claw_md(cwd);
     artifacts.push(InitArtifact {
-        name: "CLAW.md",
+        name: "SINGUL.md",
         status: write_file_if_missing(&claw_md, &content)?,
     });
 
@@ -162,9 +162,9 @@ fn ensure_gitignore_entries(path: &Path) -> Result<InitStatus, std::io::Error> {
 pub(crate) fn render_init_claw_md(cwd: &Path) -> String {
     let detection = detect_repo(cwd);
     let mut lines = vec![
-        "# CLAW.md".to_string(),
+        "# SINGUL.md".to_string(),
         String::new(),
-        "This file provides guidance to Claw Code (clawcode.dev) when working with code in this repository.".to_string(),
+        "This file provides guidance to Singul Code when working with code in this repository.".to_string(),
         String::new(),
     ];
 
@@ -357,10 +357,10 @@ mod tests {
         assert!(rendered.contains(".claw/           created"));
         assert!(rendered.contains(".claw.json       created"));
         assert!(rendered.contains(".gitignore       created"));
-        assert!(rendered.contains("CLAW.md          created"));
+        assert!(rendered.contains("SINGUL.md        created"));
         assert!(root.join(".claw").is_dir());
         assert!(root.join(".claw.json").is_file());
-        assert!(root.join("CLAW.md").is_file());
+        assert!(root.join("SINGUL.md").is_file());
         assert_eq!(
             fs::read_to_string(root.join(".claw.json")).expect("read claw json"),
             concat!(
@@ -374,7 +374,7 @@ mod tests {
         let gitignore = fs::read_to_string(root.join(".gitignore")).expect("read gitignore");
         assert!(gitignore.contains(".claw/settings.local.json"));
         assert!(gitignore.contains(".claw/sessions/"));
-        let claw_md = fs::read_to_string(root.join("CLAW.md")).expect("read claw md");
+        let claw_md = fs::read_to_string(root.join("SINGUL.md")).expect("read singul md");
         assert!(claw_md.contains("Languages: Rust."));
         assert!(claw_md.contains("cargo clippy --workspace --all-targets -- -D warnings"));
 
@@ -385,21 +385,21 @@ mod tests {
     fn initialize_repo_is_idempotent_and_preserves_existing_files() {
         let root = temp_dir();
         fs::create_dir_all(&root).expect("create root");
-        fs::write(root.join("CLAW.md"), "custom guidance\n").expect("write existing claw md");
+        fs::write(root.join("SINGUL.md"), "custom guidance\n").expect("write existing singul md");
         fs::write(root.join(".gitignore"), ".claw/settings.local.json\n").expect("write gitignore");
 
         let first = initialize_repo(&root).expect("first init should succeed");
         assert!(first
             .render()
-            .contains("CLAW.md          skipped (already exists)"));
+            .contains("SINGUL.md        skipped (already exists)"));
         let second = initialize_repo(&root).expect("second init should succeed");
         let second_rendered = second.render();
         assert!(second_rendered.contains(".claw/           skipped (already exists)"));
         assert!(second_rendered.contains(".claw.json       skipped (already exists)"));
         assert!(second_rendered.contains(".gitignore       skipped (already exists)"));
-        assert!(second_rendered.contains("CLAW.md          skipped (already exists)"));
+        assert!(second_rendered.contains("SINGUL.md        skipped (already exists)"));
         assert_eq!(
-            fs::read_to_string(root.join("CLAW.md")).expect("read existing claw md"),
+            fs::read_to_string(root.join("SINGUL.md")).expect("read existing singul md"),
             "custom guidance\n"
         );
         let gitignore = fs::read_to_string(root.join(".gitignore")).expect("read gitignore");

@@ -326,7 +326,7 @@ fn format_missing_session_reference(reference: &str) -> String {
 
 fn format_no_managed_sessions() -> String {
     format!(
-        "no managed sessions found in .claw/sessions/\nStart `claw` to create a session, then rerun with `--resume {LATEST_SESSION_REFERENCE}`."
+        "no managed sessions found in .singulcode/sessions/\nStart `singulcode` to create a session, then rerun with `--resume {LATEST_SESSION_REFERENCE}`."
     )
 }
 

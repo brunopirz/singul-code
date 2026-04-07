@@ -161,7 +161,7 @@ rust/
     ├── compat-harness/     # TS manifest extraction harness
     ├── mock-anthropic-service/ # Deterministic local Anthropic-compatible mock
     ├── runtime/            # Session, config, permissions, MCP, prompts
-    ├── rusty-claude-cli/   # Main CLI binary (`claw`)
+    ├── rusty-claude-cli/   # Main CLI binary (`singulcode`)
     └── tools/              # Built-in tool implementations
 ```
 
@@ -179,7 +179,7 @@ rust/
 
 - **~20K lines** of Rust
 - **7 crates** in workspace
-- **Binary name:** `claw`
+- **Binary name:** `singulcode`
 - **Default model:** `claude-opus-4-6`
 - **Default permissions:** `danger-full-access`
 
