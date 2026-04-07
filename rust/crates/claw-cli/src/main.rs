@@ -57,7 +57,7 @@ fn default_model_for_env() -> String {
         .map(|v| !v.is_empty())
         .unwrap_or(false);
     if has_openrouter {
-        return "stepfun/step-3.5-flash:free".to_string();
+        return "xiaomi/mimo-v2-flash".to_string();
     }
     let has_openai = std::env::var("OPENAI_API_KEY")
         .map(|v| !v.is_empty())
