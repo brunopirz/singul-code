@@ -21,7 +21,6 @@ use api::{
     ProviderClient, StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
 };
 use api::providers::claw_provider::{resolve_startup_auth_source, AuthSource, ClawApiClient};
-use api::providers::{detect_provider_kind, ProviderKind};
 
 use commands::{
     handle_agents_slash_command, handle_plugins_slash_command, handle_skills_slash_command,
@@ -46,13 +45,33 @@ use tools::GlobalToolRegistry;
 const DEFAULT_MODEL: &str = "claude-opus-4-6";
 
 fn default_model_for_env() -> String {
-    let provider = detect_provider_kind(DEFAULT_MODEL);
-    match provider {
-        ProviderKind::Anthropic => DEFAULT_MODEL.to_string(),
-        ProviderKind::OpenRouter => "deepseek/deepseek-chat-v3".to_string(),
-        ProviderKind::OpenAi => "gpt-4o".to_string(),
-        ProviderKind::Xai => "grok-3".to_string(),
+    // Check env vars in priority order, independent of model name routing
+    let has_anthropic = std::env::var("ANTHROPIC_API_KEY")
+        .or_else(|_| std::env::var("ANTHROPIC_AUTH_TOKEN"))
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+    if has_anthropic {
+        return DEFAULT_MODEL.to_string();
     }
+    let has_openrouter = std::env::var("OPENROUTER_API_KEY")
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+    if has_openrouter {
+        return "deepseek/deepseek-chat-v3".to_string();
+    }
+    let has_openai = std::env::var("OPENAI_API_KEY")
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+    if has_openai {
+        return "gpt-4o".to_string();
+    }
+    let has_xai = std::env::var("XAI_API_KEY")
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+    if has_xai {
+        return "grok-3".to_string();
+    }
+    DEFAULT_MODEL.to_string()
 }
 fn max_tokens_for_model(model: &str) -> u32 {
     if model.contains("opus") {
